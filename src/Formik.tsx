@@ -388,7 +388,7 @@ export class Formik<ExtraProps = {}, Values = object> extends React.Component<
     const schema = isFunction(validationSchema)
       ? validationSchema()
       : validationSchema;
-    validateYupSchema(values, schema).then(
+    return validateYupSchema(values, schema).then(
       () => {
         this.setState({ errors: {} });
         if (onSuccess) {
@@ -498,7 +498,7 @@ export class Formik<ExtraProps = {}, Values = object> extends React.Component<
     if (e && e.preventDefault) {
       e.preventDefault();
     }
-    this.submitForm();
+    return this.submitForm();
   };
 
   submitForm = () => {
@@ -515,30 +515,35 @@ export class Formik<ExtraProps = {}, Values = object> extends React.Component<
       const maybePromisedErrors =
         (this.props.validate as any)(this.state.values) || {};
       if (isPromise(maybePromisedErrors)) {
-        (maybePromisedErrors as Promise<any>).then(
+        return (maybePromisedErrors as Promise<any>).then(
           () => {
             this.setState({ errors: {} });
             this.executeSubmit();
           },
           errors => this.setState({ errors, isSubmitting: false })
         );
-        return;
       } else {
-        const isValid = Object.keys(maybePromisedErrors).length === 0;
-        this.setState({
-          errors: maybePromisedErrors as FormikErrors<Values>,
-          isSubmitting: isValid,
-        });
+        return new Promise(res => {
+          const isValid = Object.keys(maybePromisedErrors).length === 0;
+          this.setState({
+            errors: maybePromisedErrors as FormikErrors<Values>,
+            isSubmitting: isValid,
+          });
 
-        // only submit if there are no errors
-        if (isValid) {
-          this.executeSubmit();
-        }
+          // only submit if there are no errors
+          if (isValid) {
+            this.executeSubmit();
+          }
+          res();
+        });
       }
     } else if (this.props.validationSchema) {
-      this.runValidationSchema(this.state.values, this.executeSubmit);
+      return this.runValidationSchema(this.state.values, this.executeSubmit);
     } else {
-      this.executeSubmit();
+      return new Promise(res => {
+        this.executeSubmit();
+        res();
+      });
     }
   };
 
